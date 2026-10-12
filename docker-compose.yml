@@ -1,17 +1,26 @@
 services:
   family-memorial:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     image: louis-family-memorial:local
     restart: unless-stopped
     environment:
-      APP_SECRET: ${APP_SECRET:?Set a long random application secret}
-      ADMIN_EMAIL: ${ADMIN_EMAIL:?Set administrator email}
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set a strong initial administrator password}
+      APP_SECRET: ${APP_SECRET:?Set APP_SECRET in Portainer Environment variables (64 random hex characters)}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:?Set ADMIN_EMAIL in Portainer Environment variables}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in Portainer Environment variables (12+ characters)}
       SECURE_COOKIES: ${SECURE_COOKIES:-true}
-      ALLOWED_ORIGIN: ${ALLOWED_ORIGIN:?Set exact HTTPS URL, e.g. https://memorial.example.com}
+      ALLOWED_ORIGIN: ${ALLOWED_ORIGIN:?Set ALLOWED_ORIGIN to your exact HTTPS URL}
     volumes:
       - family_data:/data
     ports:
-      - "127.0.0.1:8087:8080"
+      - "8087:8080"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
 volumes:
   family_data:
