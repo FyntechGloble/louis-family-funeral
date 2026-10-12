@@ -1,25 +1,30 @@
 # Louis Brown — Private family funeral planner
 
-A mobile-friendly private web app designed for one family's funeral arrangements. Includes independent family logins, administrator invitations, read-only/viewer roles, shared 90+ item checklists, task assignment, notes, arrangements, budget estimates vs actuals, audit activity, and an installable web-app manifest. Default checklist and service details are in English and editable; the app can be translated later.
+A private mobile-friendly funeral coordination app for the Brown family. Supports individual family logins, administrator invitations, coordinator and read-only viewer roles, shared checklists, task assignment, funeral details, expense tracking, and an installable web-app manifest.
 
-## Run on Docker / Portainer
+## Portainer web installation
 
-1. Upload or clone this folder to a server that runs Docker Compose. **This archive is source code, not an already-deployed service.**
-2. Copy `.env.example` to `.env`. Replace all placeholder values. Generate `APP_SECRET` using `openssl rand -hex 32`.
-3. Set `ALLOWED_ORIGIN` to the exact public URL including `https://`, e.g. `https://memorial.yourdomain.co.za`.
-4. `docker compose up -d --build`.
-5. Place an HTTPS reverse proxy (Nginx Proxy Manager, Traefik, etc.) in front of `http://127.0.0.1:8087`. The included Compose port is host-local intentionally; HTTPS must be set up before remote family access.
-6. Open the URL, sign in using `ADMIN_EMAIL` and `ADMIN_PASSWORD`, then go to **Family & access** to create separate logins. Ask invitees to change their password immediately.
+Repository: https://github.com/FyntechGloble/louis-family-funeral
 
-**Portainer:** If Portainer's stack UI cannot build from a local folder, use its Git repository deployment with `docker-compose.yml` and a Docker build-capable deployment path, or build this image on the host first and replace the `build: .` line with your pushed image. No repo, domain, proxy, or remote server is configured by this package.
+1. In Portainer, go to **Stacks → Add stack → Git Repository**, use the repository URL above, branch **main**, and Compose path **docker-compose.yml**. Configure Git credentials if Portainer cannot access this private repository.
+2. Under **Environment variables** (these are *Portainer Stack variables*, NOT just container labels or values in a local file), add:
+   - `APP_SECRET`: generate 64 random hexadecimal characters using a trusted password generator or `openssl rand -hex 32`. **Never use the example placeholder or post the value in chat.**
+   - `ADMIN_EMAIL`: your private administrator email address.
+   - `ADMIN_PASSWORD`: a strong random password of at least 12 characters.
+   - `ALLOWED_ORIGIN`: your exact external address, e.g. `https://family.siteforgeglobal.com`.
+   - `SECURE_COOKIES`: `true` for HTTPS production access.
+3. Deploy the stack. If your Portainer Git deployment doesn't support building from the Dockerfile, build/publish the image first using your normal image-build pipeline and change the Compose `image` reference accordingly.
+4. In Portainer **Containers**, check that the app container is **running/healthy**, then open **Logs** if it restarts. A previous error `APP_SECRET must be at least 32 characters` means the secret is missing or too short **inside the container**. Adding it to Portainer's Stack variables and updating the Stack fixes that only if the updated container inherits those variables. If an existing stack was created in Web Editor mode, GitHub commits are *not* automatically pulled: recreate or switch it to a Git repository deployment after preserving its database volume.
+5. The host port is **8087**, mapped to **8080 inside the container** (`8087:8080`). Test `http://SERVER-IP:8087` from a trusted network only. A remote firewall may block this port; do not publicly expose an HTTP login as a production arrangement.
+6. For production, configure **Nginx Proxy Manager** with domain `family.siteforgeglobal.com`, Let's Encrypt HTTPS, and an upstream reachable from the proxy. For a proxy on the same Docker network, use the service/container name and internal port **8080**. For a proxy connecting to the server's host address, use the server IP and external port **8087**. Do not use localhost inside a different container.
+7. Access the HTTPS URL and sign in as administrator. Add relatives under **Family & access** and have them change temporary passwords.
 
-## Security and maintenance
+## Data and privacy
 
-- Use HTTPS and keep the site private. Do not post login credentials to the public family group.
-- Login cookies are HTTP-only, SameSite Strict and Secure by default. Passwords are salted scrypt hashes.
-- Configure reverse-proxy request rate limits for `/api/login` and add IP-based throttling. A family administrator should change the initial admin password after first sign-in.
-- Accounts can be created, but this MVP does not yet support deactivation, password reset by admin, file attachments, email delivery, calendar invitations, or granular per-task access rights. Do not use the app to store ID scans, death certificates, medical records, or financial account details; only non-sensitive coordination information.
-- All coordinators/family editors can change all task and budget data; the viewer role is read-only. Admin-only deletion applies to tasks via API, but there is no UI delete action.
-- Back up Docker volume `family_data` regularly; SQLite database is at `/data/family.db`. Prefer SQLite's online backup API / `VACUUM INTO` or volume snapshot rather than a live file-only copy. Restrict access to backups.
-- When using a proxy, pass the original `Origin` faithfully. Set `ALLOWED_ORIGIN` to your web app's exact HTTPS origin. `SECURE_COOKIES=false` is intended **only** for local HTTP development; never use on a public website.
-- This is a family planning tool, not a substitute for Home Affairs, funeral director, broker, or estate legal advice.
+The app persists its SQLite database in the named Docker volume `family_data` at `/data/family.db`. **Do not delete this volume when redeploying.** In Compose deployments, Docker may prefix the volume name with the Stack project name. Back it up securely.
+
+This is a small family planning app. It does not yet support document uploads, self-service password recovery, account revocation UI, or full offline access. Avoid storing ID numbers, certificates, medical files or bank information. Configure HTTPS and reverse-proxy login rate limits before inviting family.
+
+## Local Docker Compose
+
+Copy `.env.example` to `.env`, replace ALL placeholders with secure values and run `docker compose up -d --build`. Use `docker compose logs -f` for diagnosis.
