@@ -1,0 +1,17 @@
+services:
+  family-memorial:
+    build: .
+    image: louis-family-memorial:local
+    restart: unless-stopped
+    environment:
+      APP_SECRET: ${APP_SECRET:?Set a long random application secret}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:?Set administrator email}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set a strong initial administrator password}
+      SECURE_COOKIES: ${SECURE_COOKIES:-true}
+      ALLOWED_ORIGIN: ${ALLOWED_ORIGIN:?Set exact HTTPS URL, e.g. https://memorial.example.com}
+    volumes:
+      - family_data:/data
+    ports:
+      - "127.0.0.1:8087:8080"
+volumes:
+  family_data:
