@@ -1,7 +1,10 @@
 services:
   family-memorial:
-    image: ghcr.io/fyntechgloble/louis-family-funeral:latest
-    pull_policy: always
+    image: louis-family-memorial:local
+    build:
+      context: .
+      dockerfile: Dockerfile
+    pull_policy: build
     restart: unless-stopped
     environment:
       APP_SECRET: ${APP_SECRET:?Set APP_SECRET in Portainer environment variables}
