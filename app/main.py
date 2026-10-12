@@ -34,6 +34,8 @@ GROUPS={
  'Funeral day':['Meet funeral director and venue team','Test equipment before guests arrive','Have ushers welcome guests','Support and privately seat immediate family','Coordinate committal or cemetery departure','Coordinate refreshments','Collect photographs, equipment and belongings'],
  'After funeral':['Send thank-you message','File invoices and payment receipts','Safeguard death certificate and original documents','Follow up with insurance broker','Locate will and executor details','Start estate reporting and bank notifications with authorised representative','Review household affairs with Mom','Save funeral recording and photographs','Plan later memorial or headstone if desired']}
 
+GEPF_TASKS=["Confirm whether Dad was a GEPF member or pensioner and whether benefits apply","Ask GEPF which funeral benefit can be claimed and by whom","Get the GEPF funeral benefit claim form Z300 and banking form Z894","Prepare the death certificate and certified identity documents GEPF requests","Ask GEPF whether marriage or relationship proof is required","Submit the funeral claim through the channel GEPF confirms","Record the GEPF claim reference and track any outstanding documents","Ask GEPF about a surviving spouse pension and application Z143","Ask GEPF whether any eligible children qualify for child pension benefits","Ask about death gratuity, any remaining benefits and beneficiary procedures","Confirm with GEPF that all applicable claims are recorded","Keep original documents, banking details and ID copies safely outside the app"]
+
 FIELDS=['Funeral date','Service time','Church / venue','Venue address','Pastor','Funeral director','Funeral director phone','Burial or cremation','Committal location','Reception venue','Family coordinator','Livestream link','Family contact number','Notes']
 BUDGET=['Funeral director','Casket / urn','Hearse and transport','Cemetery / crematorium','Church / venue','Flowers','Printing','AV / livestream','Catering','Other / contingency']
 
@@ -47,6 +49,10 @@ def setup():
   if not c.execute('SELECT COUNT(*) FROM tasks').fetchone()[0]:
    for group,items in GROUPS.items():
     c.executemany('INSERT INTO tasks(category,title) VALUES(?,?)',[(group,item) for item in items])
+  # Non-destructive migration: add new GEPF tasks without resetting family progress.
+  for title in GEPF_TASKS:
+   if not c.execute('SELECT 1 FROM tasks WHERE category=? AND title=?',('GEPF benefit claims',title)).fetchone():
+    c.execute('INSERT INTO tasks(category,title) VALUES(?,?)',('GEPF benefit claims',title))
   for key in FIELDS:c.execute('INSERT OR IGNORE INTO settings(key,value) VALUES(?,?)',(key,''))
   for title in BUDGET:c.execute('INSERT OR IGNORE INTO expenses(title) VALUES(?)',(title,)) if not c.execute('SELECT 1 FROM expenses WHERE title=?',(title,)).fetchone() else None
 
