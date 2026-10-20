@@ -60,10 +60,10 @@ setup()
 
 def user(request):
  token=request.cookies.get('family_session','')
- try: uid=signer.loads(token,max_age=60*60*24*7)
+ try: session=signer.loads(token,max_age=60*60*24*7)
  except (BadSignature,SignatureExpired):raise HTTPException(401,'Please log in')
- with conn() as c:u=c.execute('SELECT id,name,email,role,password FROM users WHERE id=?',(uid,)).fetchone()
- if not u:raise HTTPException(401,'Please log in')
+ with conn() as c:u=c.execute('SELECT id,name,email,role,password FROM users WHERE id=?',(session.get('id'),)).fetchone() if isinstance(session,dict) else None
+ if not u or not hmac.compare_digest(str(session.get('v','')),hashlib.sha256(u['password'].encode()).hexdigest()[:24]):raise HTTPException(401,'Please log in')
  return dict(u)
 
 def can_edit(u):return u['role'] in ('admin','coordinator','family')
@@ -95,7 +95,7 @@ def login(v:Login):
  with conn() as c:r=c.execute('SELECT * FROM users WHERE email=?',(v.email.lower().strip(),)).fetchone()
  if not r or not verify(v.password,r['password']):raise HTTPException(401,'Incorrect email or password')
  response=JSONResponse({'ok':True})
- response.set_cookie('family_session',signer.dumps(r['id']),httponly=True,secure=os.environ.get('SECURE_COOKIES','true').lower()=='true',samesite='strict',max_age=604800,path='/')
+ response.set_cookie('family_session',signer.dumps({'id':r['id'],'v':hashlib.sha256(r['password'].encode()).hexdigest()[:24]}),httponly=True,secure=os.environ.get('SECURE_COOKIES','true').lower()=='true',samesite='strict',max_age=604800,path='/')
  return response
 @app.post('/api/logout')
 def logout():
@@ -168,3 +168,17 @@ def password_change(v:NewPassword,request:Request):
  if not verify(v.old,u['password']):raise HTTPException(400,'Current password incorrect')
  with conn() as c:c.execute('UPDATE users SET password=? WHERE id=?',(hash_password(v.new),u['id']));log(c,u,'Changed password')
  return {'ok':True}
+
+class AdminPasswordReset(BaseModel):
+ new_password:str=Field(min_length=12,max_length=128)
+
+@app.post('/api/members/{member_id}/reset-password')
+def admin_reset_password(member_id:int,v:AdminPasswordReset,request:Request):
+ u=user(request);require_admin(u)
+ if member_id==u['id']:raise HTTPException(400,'Use Change my password for your own account')
+ with conn() as c:
+  target=c.execute('SELECT id,name FROM users WHERE id=?',(member_id,)).fetchone()
+  if not target:raise HTTPException(404,'Family member not found')
+  c.execute('UPDATE users SET password=? WHERE id=?',(hash_password(v.new_password),member_id))
+  log(c,u,'Reset password for '+target['name'])
+ return {'ok':True,'message':'Password updated. Previous sessions have been invalidated.'}
