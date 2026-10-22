@@ -3,6 +3,8 @@
 services:
   louis-memorial:
     image: nginx:stable-alpine
+    environment:
+      BOOKLET_REVISION: mobile-fix-20261022
     container_name: louis-memorial-booklet
     restart: unless-stopped
     entrypoint:
