@@ -1,0 +1,25 @@
+# Portainer Git stack: https://github.com/FyntechGloble/louis-family-funeral
+# Compose path: memorial-booklet/portainer-stack.yml
+services:
+  louis-memorial:
+    image: nginx:stable-alpine
+    container_name: louis-memorial-booklet
+    restart: unless-stopped
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+        wget -q -O /tmp/louis-memorial.html https://raw.githubusercontent.com/FyntechGloble/louis-family-funeral/main/memorial-booklet/index.html
+        test -s /tmp/louis-memorial.html
+        mv /tmp/louis-memorial.html /usr/share/nginx/html/index.html
+        exec nginx -g 'daemon off;'
+    ports:
+      - "8098:80"
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/ || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
